@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Code Mentor</title>
+
+  <!-- CodeMirror -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/javascript/javascript.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/python/python.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/clike/clike.min.js"></script>
+
+  <!-- jsPDF -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+  <style>
+    /* Reset styles */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f4f4f9;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+
+    .container {
+      background: white;
+      border-radius: 8px;
+      padding: 20px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+      width: 600px;
+      text-align: center;
+    }
+
+    h1 {
+      font-size: 24px;
+      margin-bottom: 20px;
+    }
+
+    #auth input {
+      width: calc(100% - 22px);
+      padding: 10px;
+      margin-bottom: 10px;
+      border-radius: 8px;
+      border: 1px solid #ddd;
+    }
+
+    button {
+      background-color: #007BFF;
+      color: white;
+      font-size: 16px;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: #0056b3;
+    }
+
+    #analysisResult {
+      margin-top: 20px;
+      text-align: left;
+    }
+
+    #analysisText {
+      background-color: #f8f9fa;
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid #ddd;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>AI Code Mentor</h1>
+
+    <!-- Authentication Section -->
+    <div id="auth">
+      <h2>Login</h2>
+      <input id="username" placeholder="Username">
+      <input id="password" type="password" placeholder="Password">
+      <button id="loginButton">Login</button>
+    </div>
+
+    <!-- Code Analysis Section -->
+    <div id="app" style="display: none;">
+      <div>
+        <label for="languageSelector">Select Language:</label>
+        <select id="languageSelector">
+          <option value="javascript">JavaScript</option>
+          <option value="python">Python</option>
+          <option value="java">Java</option>
+          <option value="cpp">C++</option>
+        </select>
+      </div>
+      <div id="codeEditor"></div>
+      <button id="analyzeButton">Analyze Code</button>
+      <button id="exportButton">Export as PDF</button>
+
+      <div id="analysisResult">
+        <h2>Analysis:</h2>
+        <p id="analysisText">Your code analysis will appear here.</p>
+      </div>
+    </div>
+  </div>
+  <script>
+    const serverUrl = 'http://localhost:5000';
+    let editor;
+
+    // Initialize CodeMirror after login
+    const initEditor = () => {
+      editor = CodeMirror(document.getElementById('codeEditor'), {
+        lineNumbers: true,
+        mode: 'javascript', // Default mode
+        theme: 'default',
+      });
+    };
+
+    // Login logic
+    document.getElementById('loginButton').addEventListener('click', async () => {
+      const username = document.getElementById('username').value;
+      const password = document.getElementById('password').value;
+
+      try {
+        const response = await fetch(`${serverUrl}/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password }),
+        });
+
+        const result = await response.json();
+        if (response.ok) {
+          alert('Login successful!');
+          document.getElementById('auth').style.display = 'none';
+          document.getElementById('app').style.display = 'block';
+          initEditor();
+        } else {
+          alert(result.error || 'Login failed.');
+        }
+      } catch (error) {
+        console.error('Error logging in:', error);
+      }
+    });
+
+    // Analyze code
+    document.getElementById('analyzeButton').addEventListener('click', async () => {
+      const codeInput = editor.getValue();
+      const selectedLanguage = document.getElementById('languageSelector').value;
+
+      if (!codeInput) {
+        alert('Please paste some code to analyze.');
+        return;
+      }
+
+      try {
+        const response = await fetch(`${serverUrl}/analyze`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code: codeInput, language: selectedLanguage }),
+        });
+
+        const result = await response.json();
+        document.getElementById('analysisText').textContent = result.analysis || 'No analysis returned.';
+      } catch (error) {
+        console.error('Error analyzing code:', error);
+      }
+    });
+
+    // Export as PDF
+    document.getElementById('exportButton').addEventListener('click', () => {
+      const analysis = document.getElementById('analysisText').textContent;
+
+      if (!analysis || analysis === 'Your code analysis will appear here.') {
+        alert('No analysis to export.');
+        return;
+      }
+
+      const { jsPDF } = window.jspdf;
+      const pdf = new jsPDF();
+
+      pdf.text("AI Code Mentor - Code Analysis", 10, 10);
+      pdf.text(analysis, 10, 20);
+      pdf.save('code-analysis.pdf');
+    });
+  </script>
+</body>
+</html>
